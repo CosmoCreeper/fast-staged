@@ -84,6 +84,7 @@ fast-staged [options]
   --no-stash            Don't stash unstaged changes before running
   --no-concurrent       Run tasks sequentially
   --allow-empty         Run even when no files match
+  --lean                Minimize git subprocesses (see Lean mode below)
   --debug               Enable debug output
   -h, --help            Show help
   --version             Print version
@@ -103,18 +104,39 @@ const ok = await fastStaged({
   diff: true, // re-stage files modified by commands
   allowEmpty: false, // run even with no matched files
   debug: false, // extra debug output
+  lean: false, // or set `lean` in config — see Lean mode
 });
 
 process.exit(ok ? 0 : 1);
+```
+
+### Lean mode
+
+When you are fine with stricter tradeoffs, opt in so fast-staged avoids almost all **git** subprocesses besides listing the index (one `git diff --cached` per run):
+
+- Set `"lean": true` next to your globs in `package.json` (`lint-staged` / `fast-staged`) or in any supported config file, **or** pass `--lean` / `{ lean: true }` to the API.
+- **Skipped:** `git rev-parse` (repo root is found by walking up for `.git`, with a rare fallback to `git rev-parse`), the unstaged-dirty probe, stashing, and post-run `git add` to re-stage formatter output.
+
+Use lean mode only if a dirty working tree mixed with a partial stage will not confuse your tools, you do not rely on automatic re-staging after `--write` formatters, and a normal `.git` entry exists on disk (typical clones and worktrees).
+
+```json
+{
+  "lint-staged": {
+    "lean": true,
+    "*.{js,ts}": "eslint --fix"
+  }
+}
 ```
 
 ### Lower-level utilities
 
 ```js
 import {
-  loadConfig, // load + parse any lint-staged config format
+  loadConfig, // → { tasks, lean }; load + parse any lint-staged config format
   getStagedFiles, // list staged files via git diff --cached
-  getGitRoot, // find git repository root
+  getGitRoot, // find git repository root (git subprocess)
+  getGitRootPreferFs, // walk `.git` then optional git fallback
+  peekPackageJsonLean, // read `lean` from package.json up the tree (sync)
   runTasks, // run commands against matched files
   buildMatcher, // glob → (file: string) => boolean
 } from "fast-staged";

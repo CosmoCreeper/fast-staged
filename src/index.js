@@ -1,6 +1,7 @@
-import { loadConfig } from "./config.js";
+import { loadConfig, peekPackageJsonLean } from "./config.js";
 import {
   getGitRoot,
+  getGitRootPreferFs,
   getStagedFiles,
   hasPartiallyStaged,
   stashUnstaged,
@@ -20,7 +21,8 @@ import { createRenderer, logInfo, log } from "./output.js";
  * @param {boolean} [options.stash]      - Stash unstaged changes (default: true)
  * @param {boolean} [options.diff]       - Re-stage files modified by commands (default: true)
  * @param {boolean} [options.debug]      - Extra debug output
- * @param {string[]} [options.allowEmpty] - Allow running when no files match
+ * @param {boolean} [options.allowEmpty] - Allow running when no staged files (default: false)
+ * @param {boolean} [options.lean]       - Minimize git subprocesses (see README / config `lean`)
  *
  * @returns {Promise<boolean>} true = all tasks passed
  */
@@ -34,6 +36,7 @@ export async function fastStaged(options = {}) {
     diff = true,
     debug = false,
     allowEmpty = false,
+    lean: leanOpt = false,
   } = options;
 
   process.stderr.write(`\x1b[36m\x1b[1mfast-staged\x1b[0m \x1b[2mrunning...\x1b[0m\n`);
@@ -42,15 +45,13 @@ export async function fastStaged(options = {}) {
   let restoreStash = () => {};
 
   try {
-    // 1. Find git root
-    const gitRoot = getGitRoot(cwd);
+    const peekLean = peekPackageJsonLean(cwd);
+    const rootHint = leanOpt || peekLean;
+    // 1. Git root (filesystem walk when lean is hinted — skips `git rev-parse` in normal layouts)
+    const gitRoot = rootHint ? getGitRootPreferFs(cwd) : getGitRoot(cwd);
     if (debug) logInfo("git root:", gitRoot);
 
-    // 2. Load config
-    const config = await loadConfig(configPath, cwd);
-    if (debug) logInfo("config:", JSON.stringify(config, null, 2));
-
-    // 3. Get staged files
+    // 2. Staged files first so we can skip config I/O when nothing is staged
     const staged = getStagedFiles(gitRoot);
     if (debug) logInfo("staged files:", staged.join(", ") || "(none)");
 
@@ -59,8 +60,15 @@ export async function fastStaged(options = {}) {
       return true;
     }
 
+    // 3. Load config
+    const { tasks: config, lean: leanFromFile } = await loadConfig(configPath, cwd);
+    const lean = Boolean(leanOpt || leanFromFile || peekLean);
+    if (debug && lean) logInfo("lean mode: skipping stash probe, stash, and re-stage git calls");
+
+    if (debug) logInfo("config:", JSON.stringify(config, null, 2));
+
     // 4. Optionally stash unstaged changes for clean linting
-    const partiallyStaged = stash && hasPartiallyStaged(gitRoot);
+    const partiallyStaged = !lean && stash && hasPartiallyStaged(gitRoot);
     if (partiallyStaged) {
       if (debug) logInfo("stashing unstaged changes...");
       restoreStash = stashUnstaged(gitRoot);
@@ -74,7 +82,7 @@ export async function fastStaged(options = {}) {
     });
 
     // 6. Re-stage files modified by formatters (e.g. prettier --write)
-    if (diff && ok) {
+    if (diff && ok && !lean) {
       restageFiles(gitRoot, staged);
     }
 
@@ -93,7 +101,7 @@ export async function fastStaged(options = {}) {
 }
 
 // Re-export lower-level utilities for advanced use
-export { loadConfig } from "./config.js";
-export { getStagedFiles, getGitRoot } from "./git.js";
+export { loadConfig, peekPackageJsonLean } from "./config.js";
+export { getStagedFiles, getGitRoot, getGitRootFromFilesystem, getGitRootPreferFs } from "./git.js";
 export { runTasks } from "./runner.js";
 export { buildMatcher } from "./matcher.js";

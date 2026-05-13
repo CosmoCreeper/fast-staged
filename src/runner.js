@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
+import { buildMatcher } from "./matcher.js";
 
 const IS_WIN = process.platform === "win32";
 const PATH_SEP = IS_WIN ? ";" : ":";
@@ -86,17 +87,23 @@ function splitShellWords(s) {
 
 /**
  * Run a single command against the given files.
+ * @param {string} pathEnv - Precomputed PATH (see buildPath)
+ * @param {Map<string, { bin: string; useShell: boolean }>} binCache
  */
-function runCommand(cmd, files, cwd) {
+function runCommand(cmd, files, cwd, pathEnv, binCache) {
   return new Promise((resolve) => {
     const { bin: rawBin, args } = expandCommand(cmd, files);
-    const PATH = buildPath(cwd);
-    const { bin, useShell } = resolveBin(rawBin, PATH);
+    let resolved = binCache.get(rawBin);
+    if (!resolved) {
+      resolved = resolveBin(rawBin, pathEnv);
+      binCache.set(rawBin, resolved);
+    }
+    const { bin, useShell } = resolved;
     const output = [];
 
     const child = spawn(bin, args, {
       cwd,
-      env: { ...process.env, PATH },
+      env: { ...process.env, PATH: pathEnv },
       shell: useShell,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -109,7 +116,7 @@ function runCommand(cmd, files, cwd) {
     child.on("error", (err) => {
       resolve({
         ok: false,
-        output: `${err.message}\nResolved bin: ${bin}\nPATH entries searched:\n${PATH.split(PATH_SEP).join("\n")}`,
+        output: `${err.message}\nResolved bin: ${bin}\nPATH entries searched:\n${pathEnv.split(PATH_SEP).join("\n")}`,
         cmd,
         files,
       });
@@ -122,7 +129,8 @@ function runCommand(cmd, files, cwd) {
  */
 export async function runTasks(config, staged, gitRoot, opts = {}) {
   const { verbose = false, concurrent = true, onUpdate = () => {} } = opts;
-  const { buildMatcher } = await import("./matcher.js");
+  const pathEnv = buildPath(gitRoot);
+  const binCache = new Map();
 
   const tasks = Object.entries(config).map(([glob, commands]) => {
     const matcher = buildMatcher(glob);
@@ -144,7 +152,7 @@ export async function runTasks(config, staged, gitRoot, opts = {}) {
   if (concurrent) {
     const promises = activeTasks.flatMap((task) =>
       task.commands.map((cmd) =>
-        runCommand(cmd, task.matchedFiles, gitRoot).then((result) => {
+        runCommand(cmd, task.matchedFiles, gitRoot, pathEnv, binCache).then((result) => {
           onUpdate({ type: "done", task, result });
           return result;
         }),
@@ -156,7 +164,7 @@ export async function runTasks(config, staged, gitRoot, opts = {}) {
   } else {
     for (const task of activeTasks) {
       for (const cmd of task.commands) {
-        const result = await runCommand(cmd, task.matchedFiles, gitRoot);
+        const result = await runCommand(cmd, task.matchedFiles, gitRoot, pathEnv, binCache);
         onUpdate({ type: "done", task, result });
         allResults.push(result);
         if (!result.ok) allOk = false;

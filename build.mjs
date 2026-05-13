@@ -1,4 +1,3 @@
-// build.mjs — bundle fast-staged for npm distribution
 // Produces a single-file zero-dependency CJS + ESM bundle.
 import { build } from "esbuild";
 import { mkdirSync } from "node:fs";

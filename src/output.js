@@ -30,7 +30,6 @@ export function createRenderer(verbose) {
         for (const t of list) {
           for (const cmd of t.commands) {
             cmdStart.set(cmd, Date.now());
-            // Always show what's launching — user knows it's not hung
             log(
               `  ${CYAN}${symbols.run}${RESET} ${DIM}${cmd}${RESET}  ${DIM}(${t.matchedFiles.length} file${t.matchedFiles.length === 1 ? "" : "s"})${RESET}`,
             );

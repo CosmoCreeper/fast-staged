@@ -1,5 +1,6 @@
 import { spawnSync, execFileSync } from "node:child_process";
-import { resolve } from "node:path";
+import { resolve, join, dirname } from "node:path";
+import { existsSync } from "node:fs";
 
 /**
  * Find the git root from cwd.
@@ -11,6 +12,31 @@ export function getGitRoot(cwd = process.cwd()) {
   });
   if (result.status !== 0) throw new Error("Not inside a git repository.");
   return result.stdout.trim();
+}
+
+/**
+ * Find repo root by walking up for `.git` (no subprocess).
+ * Matches `git rev-parse --show-toplevel` for normal repos, submodules, and worktrees.
+ */
+export function getGitRootFromFilesystem(cwd = process.cwd()) {
+  let dir = resolve(cwd);
+  while (true) {
+    if (existsSync(join(dir, ".git"))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) throw new Error("Not inside a git repository.");
+    dir = parent;
+  }
+}
+
+/**
+ * Prefer filesystem discovery; fall back to `git rev-parse` (e.g. rare `GIT_DIR`-only setups).
+ */
+export function getGitRootPreferFs(cwd = process.cwd()) {
+  try {
+    return getGitRootFromFilesystem(cwd);
+  } catch {
+    return getGitRoot(cwd);
+  }
 }
 
 /**

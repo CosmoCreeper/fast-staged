@@ -13,6 +13,7 @@
  *   --no-stash                Skip stashing unstaged changes
  *   --no-concurrent           Run tasks sequentially (default: concurrent)
  *   --allow-empty             Run even if no staged files match any pattern
+ *   --lean                    Fewer git subprocesses (stash / re-stage skipped)
  *   --debug                   Extra debug output
  *   -h, --help                Show help
  *   --version                 Print version
@@ -20,8 +21,7 @@
 
 import { fastStaged } from "../src/index.js";
 
-// ── Argument parsing (zero deps) ──────────────────────────────────────────────
-
+// Argument parsing
 const args = process.argv.slice(2);
 const opts = {
   config: undefined,
@@ -30,6 +30,7 @@ const opts = {
   concurrent: true,
   allowEmpty: false,
   debug: false,
+  lean: false,
 };
 
 for (let i = 0; i < args.length; i++) {
@@ -52,6 +53,9 @@ for (let i = 0; i < args.length; i++) {
       break;
     case "--allow-empty":
       opts.allowEmpty = true;
+      break;
+    case "--lean":
+      opts.lean = true;
       break;
     case "--debug":
       opts.debug = true;
@@ -80,6 +84,7 @@ Options:
   --no-stash            Don't stash unstaged changes before running
   --no-concurrent       Run tasks sequentially
   --allow-empty         Run even when no files match
+  --lean                Fewer git calls (no stash probe / stash / re-stage); see docs
   --debug               Enable debug output
   -h, --help            Show this help message
   --version             Print version number
@@ -99,7 +104,6 @@ Config (any of these, searched from cwd upward):
   }
 }
 
-// ── Run ───────────────────────────────────────────────────────────────────────
-
+// Run
 const ok = await fastStaged(opts);
 process.exit(ok ? 0 : 1);

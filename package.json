@@ -42,8 +42,10 @@
     "oxfmt": "^0.49.0"
   },
   "lint-staged": {
+    "*.js": [
+      "node --check"
+    ],
     "*": [
-      "node --check",
       "oxfmt --check"
     ]
   },

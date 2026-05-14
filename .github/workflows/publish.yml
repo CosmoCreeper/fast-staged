@@ -1,12 +1,12 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - "v*"
-
-env:
-  CARGO_TERM_COLOR: always
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        name: "Version tag name to publish"
+        type: string
+        required: true
 
 jobs:
   publish:
@@ -47,5 +47,6 @@ jobs:
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           generate_release_notes: true
+          tag_name: ${{ inputs.tag_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

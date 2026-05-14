@@ -1,3 +1,6 @@
+> [!NOTE]
+> This project was entirely vibe-coded, and I do apologize for that. This project started entirely because I wanted to see how good AI was and if it could build something faster than lint-staged, and the answer was yes. I do pledge to, at some point, return to this project and write all future commits myself.
+
 # fast-staged
 
 > A drop-in replacement for `lint-staged` — optimized for speed.

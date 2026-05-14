@@ -1,5 +1,5 @@
 > [!NOTE]
-> This project was entirely vibe-coded, and I do apologize for that. This project started entirely because I wanted to see how good AI was and if it could build something faster than lint-staged, and the answer was yes. I do pledge to, at some point, return to this project and write all future commits myself.
+> This project was entirely vibe-coded, and I do apologize for that. This project started entirely because I wanted to see how good AI was and if it could build something faster than lint-staged, and the answer was yes. Every commit made after the "Implement lean mode" commit will and has been coded by me personally.
 
 # fast-staged
 

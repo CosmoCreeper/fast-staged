@@ -3,7 +3,7 @@
 
 # fast-staged
 
-> A drop-in replacement for `lint-staged` — optimized for speed.
+A drop-in replacement for `lint-staged` — optimized for speed.
 
 ## Why faster?
 

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        name: "Version tag name to publish"
+        description: "Version tag name to publish"
         type: string
         required: true
 

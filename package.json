@@ -11,6 +11,11 @@
     "staged"
   ],
   "license": "MIT",
+  "author": "CosmoCreeper",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CosmoCreeper/fast-staged"
+  },
   "bin": {
     "fast-staged": "./dist/cli.js",
     "lint-staged": "./dist/cli.js"

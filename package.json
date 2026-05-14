@@ -40,7 +40,7 @@
   },
   "lint-staged": {
     "lean": true,
-    "*.js": [
+    "*.{js,mjs}": [
       "node --check"
     ],
     "*": [

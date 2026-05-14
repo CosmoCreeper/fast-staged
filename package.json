@@ -12,22 +12,19 @@
   ],
   "license": "MIT",
   "bin": {
-    "fast-staged": "./bin/fast-staged.js",
-    "lint-staged": "./bin/fast-staged.js"
+    "fast-staged": "./dist/cli.js",
+    "lint-staged": "./dist/cli.js"
   },
   "files": [
-    "dist",
-    "bin"
+    "dist"
   ],
   "type": "module",
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    },
-    "./bin": "./bin/fast-staged.js"
+    }
   },
   "scripts": {
     "build": "node build.mjs",

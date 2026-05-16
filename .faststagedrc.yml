@@ -1,0 +1,6 @@
+lean: true
+
+"*.{js,mjs,cjs}":
+  - node --check
+"*":
+  - oxfmt --check

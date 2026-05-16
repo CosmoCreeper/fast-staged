@@ -4,6 +4,8 @@
  * Intentionally minimal for startup speed.
  */
 
+const reCache = new Map();
+
 function escapeRegex(s) {
   return s.replace(/[.+^${}()|[\]\\]/g, "\\$&");
 }
@@ -16,6 +18,7 @@ function expandBraces(pattern) {
 }
 
 function globToRegex(pattern) {
+  if (reCache.has(pattern)) return reCache.get(pattern);
   // Handle ** and * carefully
   let re = "";
   let i = 0;
@@ -45,7 +48,10 @@ function globToRegex(pattern) {
       i++;
     }
   }
-  return new RegExp(`^${re}$`);
+
+  re = new RegExp(`^${re}$`);
+  reCache.set(pattern, re);
+  return re;
 }
 
 /**

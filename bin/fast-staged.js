@@ -8,7 +8,6 @@
  *   lint-staged  [options]   ← same binary, aliased
  *
  * Options:
- *   -c, --config <path>       Path to configuration file
  *   -v, --verbose             Show command output even when successful
  *   --no-stash                Skip stashing unstaged changes
  *   --no-concurrent           Run tasks sequentially (default: concurrent)
@@ -24,7 +23,6 @@ import { fastStaged } from "../src/index.js";
 // Argument parsing
 const args = process.argv.slice(2);
 const opts = {
-  config: undefined,
   verbose: false,
   stash: true,
   concurrent: true,
@@ -36,10 +34,6 @@ const opts = {
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   switch (a) {
-    case "-c":
-    case "--config":
-      opts.config = args[++i];
-      break;
     case "-v":
     case "--verbose":
       opts.verbose = true;
@@ -61,12 +55,7 @@ for (let i = 0; i < args.length; i++) {
       opts.debug = true;
       break;
     case "--version": {
-      const { createRequire } = await import("node:module");
-      const { fileURLToPath } = await import("node:url");
-      const { dirname, join } = await import("node:path");
-      const require = createRequire(import.meta.url);
-      const pkg = require(join(dirname(fileURLToPath(import.meta.url)), "../package.json"));
-      console.log(pkg.version);
+      console.log(process.env.prodVersion);
       process.exit(0);
       break;
     }
@@ -79,7 +68,6 @@ Usage:
   fast-staged [options]
 
 Options:
-  -c, --config <path>   Path to config file
   -v, --verbose         Show command output even on success
   --no-stash            Don't stash unstaged changes before running
   --no-concurrent       Run tasks sequentially
@@ -89,10 +77,7 @@ Options:
   -h, --help            Show this help message
   --version             Print version number
 
-Config (any of these, searched from cwd upward):
-  package.json          "lint-staged" or "fast-staged" key
-  lint-staged.config.js / .lintstagedrc / .lintstagedrc.json
-  fast-staged.config.js / .fast-staged.config.json
+Config (searched from cwd upward): .faststagedrc.yml
 `);
       process.exit(0);
       break;

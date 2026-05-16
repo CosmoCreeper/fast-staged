@@ -1,4 +1,4 @@
-import { spawnSync, execFileSync } from "node:child_process";
+import { execFile, spawnSync, execFileSync } from "node:child_process";
 import { resolve, join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 
@@ -39,33 +39,29 @@ export function getGitRootPreferFs(cwd = process.cwd()) {
   }
 }
 
-/**
- * Return the list of staged files (relative to gitRoot, forward-slash separated).
- * Only returns files that exist on disk (not deleted files).
- */
-export function getStagedFiles(gitRoot) {
-  const result = spawnSync("git", ["diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"], {
-    cwd: gitRoot,
-    encoding: "utf8",
+export function getStagedAndPartialStatus(gitRoot) {
+  return new Promise((resolve) => {
+    execFile(
+      "git",
+      ["status", "--porcelain", "-z"],
+      { cwd: gitRoot, encoding: "utf8" },
+      (err, stdout) => {
+        if (err) return resolve({ staged: [], hasUnstaged: false });
+        const entries = stdout.split("\0").filter(Boolean);
+        const staged = [];
+        let hasUnstaged = false;
+        for (const entry of entries) {
+          if (entry.length < 3) continue;
+          const x = entry[0],
+            y = entry[1],
+            file = entry.slice(3);
+          if ("ACMR".includes(x)) staged.push(file);
+          if (y !== " " && y !== "?") hasUnstaged = true;
+        }
+        resolve({ staged, hasUnstaged });
+      },
+    );
   });
-  if (result.status !== 0) return [];
-  return result.stdout
-    .split("\0")
-    .map((f) => f.trim())
-    .filter(Boolean);
-}
-
-/**
- * Return the list of all staged files including deleted ones,
- * useful for determining if we should stash.
- */
-export function hasPartiallyStaged(gitRoot) {
-  const result = spawnSync("git", ["diff", "--name-only", "-z"], {
-    cwd: gitRoot,
-    encoding: "utf8",
-  });
-  if (result.status !== 0) return false;
-  return result.stdout.split("\0").filter(Boolean).length > 0;
 }
 
 /**

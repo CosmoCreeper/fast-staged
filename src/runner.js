@@ -40,15 +40,20 @@ function resolveBin(bin, PATH) {
   return { bin, useShell: false };
 }
 
-/**
- * Expand `{staged_files}` placeholder or append files to the command.
- */
+const cmdCache = new Map();
+
 function expandCommand(cmd, files) {
-  const PLACEHOLDER = "{staged_files}";
-  const parts = splitShellWords(cmd);
-  const bin = parts[0];
-  const rawArgs = parts.slice(1);
-  const phIdx = rawArgs.indexOf(PLACEHOLDER);
+  let parsed = cmdCache.get(cmd);
+  if (!parsed) {
+    const parts = splitShellWords(cmd);
+    parsed = {
+      bin: parts[0],
+      rawArgs: parts.slice(1),
+      phIdx: parts.slice(1).indexOf("{staged_files}"),
+    };
+    cmdCache.set(cmd, parsed);
+  }
+  const { bin, rawArgs, phIdx } = parsed;
   if (phIdx !== -1) {
     return { bin, args: [...rawArgs.slice(0, phIdx), ...files, ...rawArgs.slice(phIdx + 1)] };
   }
@@ -90,7 +95,7 @@ function splitShellWords(s) {
  * @param {string} pathEnv - Precomputed PATH (see buildPath)
  * @param {Map<string, { bin: string; useShell: boolean }>} binCache
  */
-function runCommand(cmd, files, cwd, pathEnv, binCache) {
+function runCommand(cmd, files, cwd, pathEnv, spawnEnv, binCache) {
   return new Promise((resolve) => {
     const { bin: rawBin, args } = expandCommand(cmd, files);
     let resolved = binCache.get(rawBin);
@@ -103,7 +108,7 @@ function runCommand(cmd, files, cwd, pathEnv, binCache) {
 
     const child = spawn(bin, args, {
       cwd,
-      env: { ...process.env, PATH: pathEnv },
+      env: spawnEnv,
       shell: useShell,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -130,6 +135,7 @@ function runCommand(cmd, files, cwd, pathEnv, binCache) {
 export async function runTasks(config, staged, gitRoot, opts = {}) {
   const { verbose = false, concurrent = true, onUpdate = () => {} } = opts;
   const pathEnv = buildPath(gitRoot);
+  const spawnEnv = { ...process.env, PATH: pathEnv };
   const binCache = new Map();
 
   const tasks = Object.entries(config).map(([glob, commands]) => {
@@ -152,7 +158,7 @@ export async function runTasks(config, staged, gitRoot, opts = {}) {
   if (concurrent) {
     const promises = activeTasks.flatMap((task) =>
       task.commands.map((cmd) =>
-        runCommand(cmd, task.matchedFiles, gitRoot, pathEnv, binCache).then((result) => {
+        runCommand(cmd, task.matchedFiles, gitRoot, pathEnv, spawnEnv, binCache).then((result) => {
           onUpdate({ type: "done", task, result });
           return result;
         }),
@@ -164,7 +170,14 @@ export async function runTasks(config, staged, gitRoot, opts = {}) {
   } else {
     for (const task of activeTasks) {
       for (const cmd of task.commands) {
-        const result = await runCommand(cmd, task.matchedFiles, gitRoot, pathEnv, binCache);
+        const result = await runCommand(
+          cmd,
+          task.matchedFiles,
+          gitRoot,
+          pathEnv,
+          spawnEnv,
+          binCache,
+        );
         onUpdate({ type: "done", task, result });
         allResults.push(result);
         if (!result.ok) allOk = false;
